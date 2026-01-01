@@ -81,10 +81,10 @@ def check_balance(address):
 with open("addresses.json") as file:
     for line in file:
 
-    	arq1 = open('balance.json', 'a')
+        arq1 = open('balance.json', 'a')
         address = str.strip(line)
-        print ("__________________________________________________\n")
+        print("__________________________________________________\n")
         
         check_balance(address)
-print "__________________________________________________\n"
+print("__________________________________________________\n")
 arq1.close()

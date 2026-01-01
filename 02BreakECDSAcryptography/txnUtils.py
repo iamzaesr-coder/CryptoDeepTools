@@ -5,6 +5,7 @@ import unittest
 import utils
 import keyUtils
 import base58
+import binascii
 
 # Makes a transaction from the inputs
 # outputs is a list of [redemptionSatoshis, outputScript]
@@ -12,15 +13,15 @@ def makeRawTransaction(outputTransactionHash, sourceIndex, scriptSig, outputs):
     def makeOutput(data):
         redemptionSatoshis, outputScript = data
         return (struct.pack("<Q", redemptionSatoshis).hex() +
-                '%02x' % len(outputScript.decode('hex')) + outputScript)
+                '%02x' % len(bytes.fromhex(outputScript)) + outputScript)
     
     formattedOutputs = ''.join(map(makeOutput, outputs))
 
     return ("01000000" +  # 4 bytes version
             "01" +  # varint for number of inputs
-            outputTransactionHash.decode('hex')[::-1].hex() +  # reverse outputTransactionHash
+            bytes.fromhex(outputTransactionHash)[::-1].hex() +  # reverse outputTransactionHash
             struct.pack('<L', sourceIndex).hex() +
-            '%02x' % len(scriptSig.decode('hex')) + scriptSig +
+            '%02x' % len(bytes.fromhex(scriptSig)) + scriptSig +
             "ffffffff" +  # sequence
             "%02x" % len(outputs) +  # number of outputs
             formattedOutputs +
@@ -54,7 +55,7 @@ def verifyTxnSignature(txn):
     signableTxn = getSignableTxn(parsed)
 
     # Calculate double SHA-256 hash using pycryptodome
-    hash1 = SHA256.new(signableTxn.decode('hex')).digest()
+    hash1 = SHA256.new(bytes.fromhex(signableTxn)).digest()
     hashToSign = SHA256.new(hash1).digest().hex()
 
     assert(parsed[1][-2:] == '01')  # hashtype
@@ -71,16 +72,16 @@ def makeSignedTransaction(privateKey, outputTransactionHash, sourceIndex, script
                     "01000000")  # hash code
 
     # Calculate double SHA-256 hash using pycryptodome
-    hash1 = SHA256.new(myTxn_forSig.decode('hex')).digest()
+    hash1 = SHA256.new(bytes.fromhex(myTxn_forSig)).digest()
     s256 = SHA256.new(hash1).digest()
 
     sk = ecdsa.SigningKey.from_string(bytes.fromhex(privateKey), curve=ecdsa.SECP256k1)
     
-    sig = sk.sign_digest(s256, sigencode=ecdsa.util.sigencode_der) + b'\01'  # b'\01' is hashtype
+    sig = sk.sign_digest(s256, sigencode=ecdsa.util.sigencode_der) + b'\x01'  # b'\x01' is hashtype
 
     pubKey = keyUtils.privateKeyToPublicKey(privateKey)
 
-    scriptSig = utils.varstr(sig).hex() + utils.varstr(pubKey.decode('hex')).hex()
+    scriptSig = utils.varstr(sig).hex() + utils.varstr(bytes.fromhex(pubKey)).hex()
 
     signed_txn = makeRawTransaction(outputTransactionHash, sourceIndex, scriptSig, outputs)
 
